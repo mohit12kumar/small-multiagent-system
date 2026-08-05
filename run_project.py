@@ -3,6 +3,46 @@ import sys
 import subprocess
 import time
 import signal
+import atexit
+
+processes = []
+
+def kill_process_tree(proc):
+    """Recursively kills process tree on Windows/Unix."""
+    if proc is None or proc.poll() is not None:
+        return
+    try:
+        if os.name == 'nt':
+            # Windows process tree kill
+            subprocess.call(f"taskkill /F /T /PID {proc.pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            proc.terminate()
+            proc.wait(timeout=2)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+def cleanup_all_processes():
+    """Guarantees all child processes (FastAPI, LangGraph, React Frontend) are stopped on exit."""
+    if not processes:
+        return
+    print("\n[Shutting Down]: Terminating all background server processes cleanly...")
+    for name, proc in processes:
+        print(f"  - Stopping {name} (PID: {proc.pid if proc else 'N/A'})...")
+        kill_process_tree(proc)
+    print("[Shutting Down]: All background processes terminated.")
+
+# Register cleanup handler for exit, SIGINT, SIGTERM
+atexit.register(cleanup_all_processes)
+
+def signal_handler(sig, frame):
+    cleanup_all_processes()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def main():
     print("==================================================================")
@@ -12,8 +52,6 @@ def main():
     # Set UTF-8 encoding environment variable
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    
-    processes = []
     
     # Read ports from environment variables
     backend_port = os.getenv("BACKEND_PORT", "8000")
@@ -63,14 +101,8 @@ def main():
                     notified.add(name)
                     
     except KeyboardInterrupt:
-        print("\n\n[Shutting Down]: Stopping all services gracefully...")
-        for name, proc in processes:
-            print(f"  - Stopping {name}...")
-            try:
-                proc.terminate()
-            except Exception:
-                pass
-        print("[Shutting Down]: All services stopped cleanly.")
+        cleanup_all_processes()
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
