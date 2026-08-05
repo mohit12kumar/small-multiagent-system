@@ -1,0 +1,11 @@
+{
+  "title": "Interview Preparation Assistant Multi-Agent Graph",
+  "python_version": "3.11",
+  "dependencies": [
+    "./backend/requirements.txt"
+  ],
+  "graphs": {
+    "interview_assistant": "./backend/graph/workflow.py:interview_graph"
+  },
+  "env": "./.env"
+}
