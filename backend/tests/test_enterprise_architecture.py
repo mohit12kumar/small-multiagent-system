@@ -5,20 +5,46 @@ import pytest
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from backend.graph.state import NodeTarget, validate_state_prerequisites
+from backend.graph.router import route_next_step
+from backend.graph.workflow import interview_graph
 from backend.agents.supervisor_agent import supervisor_agent
 from backend.agents.critic_agent import critic_agent
-from backend.services.llm_factory import llm_factory
 from backend.services.rag_service import rag_engine
-from backend.agents.tools import ats_scorer_tool, coding_compiler_tool, search_knowledge_tool
+from backend.agents.tools import ats_scorer_tool, coding_compiler_tool
 
-def test_supervisor_agent_routing():
+def test_supervisor_and_state_guard_routing():
+    # 1. Empty state must route to parsing
     state_empty = {}
     next_step = supervisor_agent.determine_next_agent(state_empty)
-    assert next_step["next_agent"] == "parse_resume_and_jd"
+    assert next_step["next_agent"] == NodeTarget.PARSE_RESUME_AND_JD.value
 
+    # 2. State Guard prevents illegal jump to MATCH_SKILLS when missing resume
+    guarded_target = validate_state_prerequisites(state_empty, NodeTarget.MATCH_SKILLS)
+    assert guarded_target == NodeTarget.PARSE_RESUME_AND_JD
+
+    # 3. State with parsed resume + JD routes to MATCH_SKILLS
     state_parsed = {"resume_skills": ["Python"], "jd_skills": ["Python"]}
     next_step2 = supervisor_agent.determine_next_agent(state_parsed)
-    assert next_step2["next_agent"] == "match_skills"
+    assert next_step2["next_agent"] == NodeTarget.MATCH_SKILLS.value
+
+def test_router_enum_targets():
+    state = {"resume_skills": ["Python"], "jd_skills": ["Python"]}
+    target = route_next_step(state)
+    assert target == NodeTarget.MATCH_SKILLS.value
+
+def test_langgraph_checkpointer_execution():
+    config = {"configurable": {"thread_id": "test_session_101"}}
+    initial_state = {
+        "candidate_name": "Alice Doe",
+        "resume_path": "uploads/resumes/sample.pdf",
+        "jd_text": "Senior Python Backend Developer with FastAPI and System Design"
+    }
+    
+    # Invoke checkpointed graph
+    final_state = interview_graph.invoke(initial_state, config=config)
+    assert "questions" in final_state
+    assert len(final_state["questions"]) > 0
 
 def test_critic_agent_evaluation():
     sample_questions = [
@@ -49,7 +75,9 @@ def test_coding_compiler_tool():
     assert invalid["valid_syntax"] is False
 
 if __name__ == "__main__":
-    test_supervisor_agent_routing()
+    test_supervisor_and_state_guard_routing()
+    test_router_enum_targets()
+    test_langgraph_checkpointer_execution()
     test_critic_agent_evaluation()
     test_rag_knowledge_engine()
     test_ats_scorer_tool()

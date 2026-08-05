@@ -1,56 +1,60 @@
 import os
 from typing import Dict, Any, List
-from backend.services.llm_factory import llm_factory
+from backend.graph.state import NodeTarget, validate_state_prerequisites
 
 class SupervisorAgent:
     """
-    Supervisor Agent (Master Orchestrator):
-    - Directs dynamic multi-agent execution flow.
-    - Decides next agent route based on state, candidate profile, and Critic Agent evaluations.
-    - Manages parallel execution nodes and reflection self-correction loops.
+    Intelligent Supervisor Agent:
+    - Evaluates multi-factor candidate state (parsing state, skill alignment, question count, answer feedback, critic quality score, and retry errors).
+    - Prevents invalid state transitions using validate_state_prerequisites.
+    - Emits typed NodeTarget Enum values for dynamic routing.
     """
     def __init__(self):
-        self.system_prompt = """You are the Principal Supervisor AI Orchestrator for an Enterprise Multi-Agent Interview System.
-Your job is to examine the current candidate state and decide the NEXT execution step.
-
-Available Next Agents:
-- "parse_resume_and_jd": If resume or JD text is missing initial extraction.
-- "match_skills": If parsing is done but skill gap matching is missing.
-- "question_agent": To generate technical questions.
-- "coding_agent": To generate DSA/Coding challenge.
-- "hr_agent": To generate behavioral STAR questions.
-- "critic_agent": To review and validate generated questions or candidate answer evaluations.
-- "human_review": If critical approval queue status is pending.
-- "generate_report": When all steps are complete and verified.
-- "FINISH": When session is complete.
-
-Return ONLY JSON:
-{
-  "next_agent": "question_agent",
-  "reasoning": "Skills matched successfully. Generating questions next.",
-  "confidence_score": 0.95
-}
-"""
+        pass
 
     def determine_next_agent(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        # 1. Inspect state components
         has_resume = bool(state.get("resume_skills"))
         has_jd = bool(state.get("jd_skills"))
-        has_match = bool(state.get("match_percentage"))
-        has_questions = len(state.get("questions", [])) >= 3
+        has_match = state.get("match_percentage") is not None
+        questions = state.get("questions", [])
+        has_questions = len(questions) >= 3
+        has_answers = bool(state.get("user_answers"))
         has_feedbacks = len(state.get("question_feedbacks", [])) > 0
         has_report = bool(state.get("pdf_path"))
+        critic_score = state.get("critic_score", 100.0)
 
+        # 2. Multi-factor intelligent decision logic
         if not has_resume or not has_jd:
-            return {"next_agent": "parse_resume_and_jd", "reasoning": "Resume or JD requires extraction."}
-        if not has_match:
-            return {"next_agent": "match_skills", "reasoning": "Executing skill match agent."}
-        if not has_questions:
-            return {"next_agent": "question_agent", "reasoning": "Synthesizing interview questions."}
-        if not has_feedbacks and not state.get("is_completed"):
-            return {"next_agent": "evaluate_answers", "reasoning": "Awaiting answer evaluations."}
-        if not has_report:
-            return {"next_agent": "generate_report", "reasoning": "Synthesizing final report."}
-            
-        return {"next_agent": "FINISH", "reasoning": "All multi-agent stages complete."}
+            raw_target = NodeTarget.PARSE_RESUME_AND_JD
+            reasoning = "Resume or JD requires extraction."
+        elif not has_match:
+            raw_target = NodeTarget.MATCH_SKILLS
+            reasoning = "Executing skill match comparison."
+        elif not has_questions:
+            raw_target = NodeTarget.GENERATE_QUESTIONS
+            reasoning = "Synthesizing role-adaptive interview questions."
+        elif has_answers and not has_feedbacks:
+            raw_target = NodeTarget.EVALUATE_ANSWERS
+            reasoning = "Evaluating candidate submitted answers."
+        elif critic_score < 80.0 and state.get("reflection_count", 0) < 2:
+            raw_target = NodeTarget.CRITIC_REFLECT
+            reasoning = f"Critic quality score ({critic_score}) below threshold. Triggering reflection loop."
+        elif not has_report:
+            raw_target = NodeTarget.GENERATE_REPORT
+            reasoning = "Compiling analytics and generating downloadable PDF report."
+        else:
+            raw_target = NodeTarget.FINISH
+            reasoning = "All multi-agent stages complete successfully."
+
+        # 3. Apply State Guard to prevent illegal jumps
+        validated_target = validate_state_prerequisites(state, raw_target)
+
+        return {
+            "next_agent": validated_target.value,
+            "enum_target": validated_target,
+            "reasoning": reasoning,
+            "confidence": 0.98 if validated_target == raw_target else 0.85
+        }
 
 supervisor_agent = SupervisorAgent()
