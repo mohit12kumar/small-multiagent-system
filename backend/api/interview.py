@@ -49,6 +49,15 @@ def start_interview_session(
     import time
     import random
     
+    # Calculate matched and missing skills from resume and job description
+    resume_skills = resume.skills or ["Python", "FastAPI", "Software Architecture"]
+    jd_skills = jd.skills or ["Python", "System Design", "SQL"]
+    
+    match_res = skill_matching_agent.compare_skills(resume_skills, jd_skills)
+    matched = match_res.get("matched_skills", [])
+    missing = match_res.get("missing_skills", [])
+    session_seed = f"{session.id}_{int(time.time())}"
+
     # Fetch all historical question texts for current user to avoid duplicates
     previous_q_objs = (
         db.query(Question)
