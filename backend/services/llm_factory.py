@@ -142,7 +142,12 @@ llm_factory = MultiProviderLLMFactory()
 def query_llm_json_sync(system_prompt: str, user_content: str) -> Dict[str, Any]:
     """Synchronous bridge for query_llm_json_async."""
     try:
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         if loop.is_running():
             import nest_asyncio
             nest_asyncio.apply()
@@ -150,4 +155,8 @@ def query_llm_json_sync(system_prompt: str, user_content: str) -> Dict[str, Any]
         else:
             return loop.run_until_complete(llm_factory.query_llm_json_async(system_prompt, user_content))
     except Exception:
-        return asyncio.run(llm_factory.query_llm_json_async(system_prompt, user_content))
+        new_loop = asyncio.new_event_loop()
+        try:
+            return new_loop.run_until_complete(llm_factory.query_llm_json_async(system_prompt, user_content))
+        finally:
+            new_loop.close()
