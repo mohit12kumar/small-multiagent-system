@@ -58,13 +58,14 @@ def start_interview_session(
     )
     previous_questions = [pq.question_text for pq in previous_q_objs if pq.question_text]
 
+    role_title = getattr(jd, 'role_title', None) or "Software Engineer"
     accumulated_prev = list(previous_questions)
-    tech_qs = question_generator_agent.generate_questions(jd.role_title or "Software Engineer", matched, missing, session_seed, previous_questions=accumulated_prev)
+    tech_qs = question_generator_agent.generate_questions(role_title, matched, missing, session_seed, previous_questions=accumulated_prev)
     for q in tech_qs:
         if q.get("question_text"):
             accumulated_prev.append(q["question_text"])
 
-    code_q = coding_agent.generate_coding_question(domain=f"{jd.role_title or 'Software Engineer'} & DSA", seed=session_seed, previous_questions=accumulated_prev)
+    code_q = coding_agent.generate_coding_question(domain=f"{role_title} & DSA", seed=session_seed, previous_questions=accumulated_prev)
     if code_q.get("question_text"):
         accumulated_prev.append(code_q["question_text"])
 
