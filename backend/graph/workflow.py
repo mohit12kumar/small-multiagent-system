@@ -54,8 +54,7 @@ def build_interview_workflow():
     workflow.add_edge("evaluate_answers", "generate_report")
     workflow.add_edge("generate_report", END)
     
-    # Enable Persistent Checkpointer Memory Saver
-    checkpointer = MemorySaver()
-    return workflow.compile(checkpointer=checkpointer)
+    # LangGraph API manages built-in persistence automatically
+    return workflow.compile()
 
 interview_graph = build_interview_workflow()

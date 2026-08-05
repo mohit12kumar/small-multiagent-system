@@ -45,14 +45,13 @@ def test_reflection_and_observability_agents():
     assert metrics["latency_ms"] >= 0.0
 
 def test_parallel_workflow_execution():
-    config = {"configurable": {"thread_id": "test_parallel_session"}}
     initial_state = {
         "candidate_name": "Bob Smith",
         "resume_path": "uploads/resumes/sample.pdf",
         "jd_text": "Senior Backend Developer specializing in Python and FastAPI"
     }
     
-    final_state = interview_graph.invoke(initial_state, config=config)
+    final_state = interview_graph.invoke(initial_state)
     assert "resume_skills" in final_state
     assert "jd_skills" in final_state
     assert "questions" in final_state
