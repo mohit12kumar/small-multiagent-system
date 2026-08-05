@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dashboardAPI, reportsAPI } from '../services/api';
+import WorkflowGraph from '../components/WorkflowGraph';
 
 function ScoreBar({ label, value, color = 'blue' }) {
   return (
@@ -84,6 +85,9 @@ export default function DashboardPage() {
           <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Overall Readiness</div>
         </div>
       </div>
+
+      {/* Dynamic Supervisor Workflow DAG Visualizer */}
+      <WorkflowGraph activeStep="all" />
 
       {/* Stat Cards */}
       <div className="dashboard-grid mb-6">

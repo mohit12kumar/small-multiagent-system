@@ -93,6 +93,21 @@ def get_user_profile(current_user: User = Depends(get_current_user)):
         role=role_str
     )
 
+@router.post("/refresh")
+def refresh_token(current_user: User = Depends(get_current_user)):
+    role_str = getattr(current_user.role, 'value', str(current_user.role))
+    new_access_token = create_access_token(data={"sub": str(current_user.id), "email": current_user.email, "role": role_str})
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": current_user.id,
+            "name": current_user.name,
+            "email": current_user.email,
+            "role": role_str
+        }
+    }
+
 @router.post("/logout")
 def logout_user():
     return {"message": "Successfully logged out"}

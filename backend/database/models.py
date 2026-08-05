@@ -142,3 +142,49 @@ class Report(Base):
     # Relationships
     user = relationship("User", back_populates="reports")
     session = relationship("InterviewSession", back_populates="report")
+
+# ── Enterprise Telemetry & Human-in-the-Loop Models ─────────────
+
+class AgentLog(Base):
+    __tablename__ = "agent_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, index=True, nullable=True)
+    agent_name = Column(String(100), index=True, nullable=False)
+    provider = Column(String(50), default="Groq")
+    tokens_used = Column(Integer, default=0)
+    latency_ms = Column(Float, default=0.0)
+    status = Column(String(50), default="success")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class PromptLog(Base):
+    __tablename__ = "prompt_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agent_name = Column(String(100), index=True, nullable=False)
+    system_prompt = Column(Text, nullable=True)
+    user_prompt = Column(Text, nullable=True)
+    response_json = Column(JSON, nullable=True)
+    cost_usd = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class HumanReviewQueue(Base):
+    __tablename__ = "human_review_queue"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, index=True, nullable=False)
+    item_type = Column(String(50), nullable=False) # e.g. "question", "report"
+    payload = Column(JSON, nullable=False)
+    status = Column(String(50), default="pending")  # pending, approved, rejected
+    reviewer_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    action = Column(String(150), nullable=False)
+    ip_address = Column(String(45), nullable=True)
+    details = Column(JSON, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
