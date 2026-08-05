@@ -1,4 +1,5 @@
 from backend.graph.state import InterviewState
+from backend.agents.supervisor_agent import supervisor_agent
 from backend.agents.resume_agent import resume_analyzer_agent
 from backend.agents.jd_agent import jd_analyzer_agent
 from backend.agents.skill_match_agent import skill_matching_agent
@@ -7,6 +8,11 @@ from backend.agents.coding_agent import coding_agent
 from backend.agents.hr_agent import hr_agent
 from backend.agents.feedback_agent import feedback_agent
 from backend.agents.report_agent import report_generator_agent
+
+def supervisor_node(state: InterviewState) -> InterviewState:
+    decision = supervisor_agent.determine_next_agent(state)
+    state["supervisor_next"] = decision.get("next_agent", "generate_report")
+    return state
 
 def parse_resume_node(state: InterviewState) -> InterviewState:
     analysis = resume_analyzer_agent.analyze_resume_file(state["resume_path"])
@@ -55,6 +61,20 @@ def generate_questions_node(state: InterviewState) -> InterviewState:
     all_questions = tech_qs + [code_q] + hr_qs
     state["questions"] = all_questions
     state["current_question_index"] = 0
+    return state
+
+def evaluate_answers_node(state: InterviewState) -> InterviewState:
+    questions = state.get("questions", [])
+    user_answers = state.get("user_answers", {})
+    feedbacks = []
+    
+    for idx, q in enumerate(questions):
+        ans_text = user_answers.get(idx) or user_answers.get(str(idx)) or "I prioritize systematic problem solving, unit testing, and scalable architecture."
+        q_text = q.get("question_text", "Explain your technical approach.")
+        fb = feedback_agent.evaluate_answer(q_text, ans_text)
+        feedbacks.append(fb)
+        
+    state["question_feedbacks"] = feedbacks
     return state
 
 def generate_report_node(state: InterviewState) -> InterviewState:

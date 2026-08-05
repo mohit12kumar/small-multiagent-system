@@ -1,13 +1,24 @@
 from backend.graph.state import InterviewState
+from backend.agents.supervisor_agent import supervisor_agent
 
 def route_next_step(state: InterviewState) -> str:
     """
-    Determines whether there are remaining questions to evaluate or to proceed to report generation.
+    Dynamic Router: Consults SupervisorAgent to determine the next graph node.
     """
-    current_idx = state.get("current_question_index", 0)
-    total_qs = len(state.get("questions", []))
+    sup_decision = supervisor_agent.determine_next_agent(state)
+    target = sup_decision.get("next_agent", "generate_report")
     
-    if current_idx < total_qs:
-        return "continue_interview"
-    else:
+    if target in ["parse_resume_and_jd", "parse_resume"]:
+        return "parse_resume"
+    elif target == "match_skills":
+        return "match_skills"
+    elif target == "question_agent":
+        return "generate_questions"
+    elif target == "evaluate_answers":
+        return "evaluate_answers"
+    elif target in ["generate_report", "critic_agent"]:
         return "generate_report"
+    elif target == "FINISH":
+        return "FINISH"
+    
+    return "generate_report"
